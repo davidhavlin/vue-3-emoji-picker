@@ -8,7 +8,7 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       name: "vue-3-emoji-picker",
-      fileName: (format) => `${format}.js`,
+      fileName: (format) => `vue-3-emoji-picker.${format}.js`,
     },
     rollupOptions: {
       external: ["vue"],

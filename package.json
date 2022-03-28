@@ -1,5 +1,26 @@
 {
   "name": "vue-3-emoji-picker",
+  "author": {
+    "email": "davidhavlin@gmail.com",
+    "name": "David Havlín"
+  },
+  "description": "A simple, lightweight Vue 3 emoji picker.",
+  "keywords": [
+    "vue 3",
+    "emojis",
+    "emoji picker",
+    "picker",
+    "emoji-picker",
+    "smiley"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davidhavlin/vue-3-emoji-picker"
+  },
+  "bugs": {
+    "url": "hhttps://github.com/davidhavlin/vue-3-emoji-picker/issues"
+  },
   "private": true,
   "version": "0.0.1",
   "files": [
