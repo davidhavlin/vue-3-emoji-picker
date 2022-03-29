@@ -74,6 +74,7 @@
 <script lang="ts" setup>
 import { ref, Directive, onMounted, onBeforeUnmount, reactive } from "vue";
 import emojis from "./emojis";
+import { vClickOutside } from "./directives";
 
 interface Props {
   placeholder?: string;
@@ -81,42 +82,18 @@ interface Props {
   width?: number;
   height?: number;
   searching?: boolean;
+  position?: "top" | "bottom" | "left" | "right";
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: "Search emojis...",
   modelValue: undefined,
   width: 240,
-  height: 390,
+  height: 250,
   searching: true,
+  position: "bottom",
 });
 const emit = defineEmits([]);
-
-const checkIfClickOutside = (
-  e: Event,
-  emojiContainer: HTMLElement,
-  cb: () => void
-) => {
-  if (
-    emojiContainer !== e.target &&
-    !emojiContainer.contains(e.target as Node)
-  ) {
-    cb();
-  }
-};
-let handler: any;
-const vClickOutside: Directive = {
-  beforeMount: (el: HTMLElement, { value: callback }) => {
-    handler = (e: Event) => checkIfClickOutside(e, el, callback);
-    document.addEventListener("click", handler);
-    document.addEventListener("touchstart", handler);
-  },
-  beforeUnmount: (el: HTMLElement) => {
-    console.log("unmount", { el });
-    document.removeEventListener("click", handler);
-    document.removeEventListener("touchstart", handler);
-  },
-};
 
 const showContainer = ref(true);
 
@@ -254,7 +231,7 @@ header {
 }
 
 .section-category {
-  margin-top: 15px;
+  /* margin-top: 15px; */
 }
 .emoji-container {
   display: flex;
@@ -289,7 +266,7 @@ header {
   justify-content: center;
   margin: 1px;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 24px;
 }
 .emoji:hover {
   /* background-color: #ffc7ff; */
