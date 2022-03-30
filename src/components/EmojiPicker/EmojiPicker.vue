@@ -8,63 +8,72 @@
           :class="{ 'emoji-picker__hovered': hovered }"
           :style="{
             transform: `translate(${dimensions.left}px, ${dimensions.top}px) translateZ(0)`,
-            width: width + 'px',
-            height: height + 'px',
           }"
           v-click-outside="onClickOutside"
+          v-on-resize="onResize"
           @mouseenter="hovered = true"
           @mouseleave="hovered = false"
         >
-          <header v-if="props.searching">
-            <input
-              class="picker-input"
-              :placeholder="props.placeholder"
-              type="text"
-            />
-            <div class="picker-input__icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-            </div>
-          </header>
+          <div
+            class="picker-arrow"
+            :style="{ width: ARROW_SIZE + 'px', height: ARROW_SIZE + 'px' }"
+          ></div>
 
-          <section class="section-used">
-            <div class="category-name special">Last used</div>
-            <div class="emoji-container special">
-              <div class="emoji">😉</div>
-              <div class="emoji">😉</div>
-              <div class="emoji">😉</div>
-            </div>
-          </section>
-
-          <section>categories</section>
-
-          <section
-            v-for="(category, name) in emojis"
-            :key="name"
-            class="section-category"
+          <div
+            class="picker-container"
+            :style="{ width: width + 'px', height: height + 'px' }"
           >
-            <div class="category-name">{{ name }}</div>
-            <div class="emoji-container">
-              <div
-                v-for="(emoji, desc) in category"
-                :key="desc"
-                class="emoji"
-                @click="onClick(emoji)"
-              >
-                {{ emoji }}
+            <header v-if="props.searching">
+              <input
+                class="picker-input"
+                :placeholder="props.placeholder"
+                type="text"
+              />
+              <div class="picker-input__icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
               </div>
-            </div>
-          </section>
+            </header>
+
+            <section class="section-used">
+              <div class="category-name special">Last used</div>
+              <div class="emoji-container special">
+                <div class="emoji">😉</div>
+                <div class="emoji">😉</div>
+                <div class="emoji">😉</div>
+              </div>
+            </section>
+
+            <section>categories</section>
+
+            <section
+              v-for="(category, name) in emojis"
+              :key="name"
+              class="section-category"
+            >
+              <div class="category-name">{{ name }}</div>
+              <div class="emoji-container">
+                <div
+                  v-for="(emoji, desc) in category"
+                  :key="desc"
+                  class="emoji"
+                  @click="onClick(emoji)"
+                >
+                  {{ emoji }}
+                </div>
+              </div>
+            </section>
+          </div>
         </main>
       </transition>
     </Teleport>
@@ -72,9 +81,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, Directive, onMounted, onBeforeUnmount, reactive } from "vue";
+import { ref, onMounted, onBeforeUnmount, reactive } from "vue";
 import emojis from "./emojis";
-import { vClickOutside } from "./directives";
+import { vClickOutside, vOnResize } from "./directives";
+
+const ARROW_SIZE = 13;
 
 interface Props {
   placeholder?: string;
@@ -83,6 +94,8 @@ interface Props {
   height?: number;
   searching?: boolean;
   position?: "top" | "bottom" | "left" | "right";
+  offset?: number[];
+  showArrow?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -92,6 +105,8 @@ const props = withDefaults(defineProps<Props>(), {
   height: 250,
   searching: true,
   position: "bottom",
+  offset: () => [0, 0],
+  showArrow: true, // todo change later
 });
 const emit = defineEmits([]);
 
@@ -99,6 +114,11 @@ const showContainer = ref(true);
 
 const onClickOutside = () => {
   showContainer.value = false;
+};
+const onResize = () => {
+  console.log("resizee");
+  parentEl = containerRef.value?.parentElement;
+  setDimensions(parentEl);
 };
 
 // function debounce(func, timeout = 300){
@@ -112,6 +132,7 @@ const onClick = (emoji: string) => {
   console.log("", emoji);
 };
 
+const getDiagonal = (n: number) => Math.sqrt(2) * n;
 const hovered = ref(false);
 const dimensions = reactive({
   top: 0,
@@ -119,6 +140,9 @@ const dimensions = reactive({
 });
 const setDimensions = (el: HTMLElement | null | undefined) => {
   if (!el) return;
+  const [offsetX, offsetY] = props.offset;
+  const diagonal = props.showArrow ? getDiagonal(ARROW_SIZE) : 0;
+  console.log("", { diagonal: diagonal / 2 });
   const {
     marginLeft,
     marginTop,
@@ -128,17 +152,8 @@ const setDimensions = (el: HTMLElement | null | undefined) => {
   const nieco = containerRef.value?.offsetWidth;
   console.log({ nieco });
   const n = props.width / 2 - el.offsetWidth / 2;
-  console.log("COMPUTED", {
-    marginLeft,
-    marginTop,
-    computedWidth,
-    computedHeight,
-    offsetLeft: el.offsetLeft,
-    offsetTop: el.offsetTop,
-    h: el.offsetHeight,
-  });
-  dimensions.top = el.offsetTop + el.offsetHeight;
-  dimensions.left = el.offsetLeft - n;
+  dimensions.top = el.offsetTop + el.offsetHeight + offsetY + diagonal / 2;
+  dimensions.left = el.offsetLeft - n + offsetX;
 };
 const onClickParent = (e: Event) => {
   e.stopPropagation();
@@ -148,7 +163,7 @@ const onClickParent = (e: Event) => {
 const containerRef = ref<HTMLElement | null>(null);
 let parentEl: null | undefined | HTMLElement;
 onMounted(() => {
-  props.modelValue;
+  // props.modelValue;
   parentEl = containerRef.value?.parentElement;
   setDimensions(parentEl);
   console.log("mounted", containerRef.value?.parentElement);
@@ -165,22 +180,29 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 .emoji-picker {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
   position: absolute;
   top: 0;
   left: 0;
+  --background-color: #fff;
+  --border-color: #e6e6e6;
+}
+.picker-container {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  /* -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale; */
+  color: #2c3e50;
   box-sizing: border-box;
   padding: 10px;
   /* overflow-y: hidden; */
   overflow-y: auto;
   backface-visibility: hidden;
   border-radius: 10px;
-  background: #fff;
+  background: var(--background-color);
   box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px,
     rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+}
+.picker-container {
+  width: 100%;
 }
 /* .emoji-picker__hovered {
   overflow-y: auto;
@@ -203,6 +225,16 @@ onBeforeUnmount(() => {
 header {
   position: relative;
   transform: tran;
+}
+
+.picker-arrow {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+  left: 50%;
+  background: #fff;
+  border-left: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
 }
 .picker-input {
   width: 100%;
@@ -250,7 +282,7 @@ header {
   font-size: 12px;
   font-weight: 700;
   color: #dcdcdc;
-  text-transform: uppercase;
+  text-transform: lowercase;
   text-align: right;
 }
 .category-name.special {

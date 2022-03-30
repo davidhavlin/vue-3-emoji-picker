@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import EmojiPicker from "./components/EmojiPicker.vue";
+import EmojiPicker from "./components/EmojiPicker/EmojiPicker.vue";
 </script>
 
 <style>

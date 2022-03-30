@@ -26,4 +26,14 @@ export const vClickOutside: Directive = {
   },
 };
 
-export const vOnResize: Directive = {};
+let resizeHandler: any;
+export const vOnResize: Directive = {
+  beforeMount: (el: HTMLElement, { value: callback }) => {
+    resizeHandler = (e: Event) => callback();
+    window.addEventListener("resize", resizeHandler);
+  },
+  beforeUnmount: (el: HTMLElement) => {
+    console.log("unmount", { el });
+    window.removeEventListener("resize", resizeHandler);
+  },
+};
