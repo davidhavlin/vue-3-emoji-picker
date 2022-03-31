@@ -13,66 +13,76 @@
           v-on-resize="onResize"
           @mouseenter="hovered = true"
           @mouseleave="hovered = false"
+          @touchstart="hovered = true"
+          @touchend="hovered = false"
         >
           <div
             class="picker-arrow"
+            :class="[ARROW_POSITION[pickerPosition]]"
             :style="{ width: ARROW_SIZE + 'px', height: ARROW_SIZE + 'px' }"
           ></div>
-
           <div
-            class="picker-container"
-            :style="{ width: width + 'px', height: height + 'px' }"
-          >
-            <header v-if="props.searching">
-              <input
-                class="picker-input"
-                :placeholder="props.placeholder"
-                type="text"
-              />
-              <div class="picker-input__icon">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </div>
-            </header>
+            class="scrollbar-hider"
+            :class="{ 'scrollbar-hider__invisible': hovered }"
+          ></div>
 
-            <section class="section-used">
-              <div class="category-name special">Last used</div>
-              <div class="emoji-container special">
-                <div class="emoji">😉</div>
-                <div class="emoji">😉</div>
-                <div class="emoji">😉</div>
-              </div>
-            </section>
-
-            <section>categories</section>
-
-            <section
-              v-for="(category, name) in emojis"
-              :key="name"
-              class="section-category"
+          <div class="wrapper" :style="{ width: width + 'px' }">
+            <div
+              class="picker-container"
+              :style="{ height: height + 'px' }"
+              @click="onClick"
             >
-              <div class="category-name">{{ name }}</div>
-              <div class="emoji-container">
-                <div
-                  v-for="(emoji, desc) in category"
-                  :key="desc"
-                  class="emoji"
-                  @click="onClick(emoji)"
-                >
-                  {{ emoji }}
+              <header v-if="props.searching">
+                <input
+                  class="picker-input"
+                  :placeholder="props.placeholder"
+                  type="text"
+                />
+                <div class="picker-input__icon">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
                 </div>
-              </div>
-            </section>
+              </header>
+
+              <section class="section-used">
+                <div class="category-name special">Last used</div>
+                <div class="emoji-container special">
+                  <div class="emoji">😉</div>
+                  <div class="emoji">😉</div>
+                  <div class="emoji">😉</div>
+                </div>
+              </section>
+
+              <section>categories</section>
+
+              <section
+                v-for="(category, name) in emojis"
+                :key="name"
+                class="section-category"
+              >
+                <div class="category-name">{{ name }}</div>
+                <div class="emoji-container">
+                  <div
+                    v-for="(emoji, desc) in category"
+                    :key="desc"
+                    :title="desc"
+                    class="emoji"
+                  >
+                    {{ emoji }}
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
         </main>
       </transition>
@@ -84,8 +94,6 @@
 import { ref, onMounted, onBeforeUnmount, reactive } from "vue";
 import emojis from "./emojis";
 import { vClickOutside, vOnResize } from "./directives";
-
-const ARROW_SIZE = 13;
 
 interface Props {
   placeholder?: string;
@@ -104,11 +112,22 @@ const props = withDefaults(defineProps<Props>(), {
   width: 240,
   height: 250,
   searching: true,
-  position: "bottom",
+  position: "left",
   offset: () => [0, 0],
   showArrow: true, // todo change later
 });
-const emit = defineEmits([]);
+const emit = defineEmits(["selectedEmoji"]);
+
+const ARROW_SIZE = 13;
+const ARROW_OFFSET = props.showArrow ? (Math.sqrt(2) * ARROW_SIZE) / 2 : 0;
+const ARROW_POSITION = {
+  top: "arrow-bottom",
+  bottom: "arrow-top",
+  left: "arrow-right",
+  right: "arrow-left",
+};
+
+const pickerPosition = ref(props.position);
 
 const showContainer = ref(true);
 
@@ -116,9 +135,12 @@ const onClickOutside = () => {
   showContainer.value = false;
 };
 const onResize = () => {
-  console.log("resizee");
+  console.log("resizee"); // check if space
   parentEl = containerRef.value?.parentElement;
   setDimensions(parentEl);
+
+  if (props.position === "left") {
+  }
 };
 
 // function debounce(func, timeout = 300){
@@ -128,11 +150,15 @@ const onResize = () => {
 //     timer = setTimeout(() => { func.apply(this, args); }, timeout);
 //   };
 // }
-const onClick = (emoji: string) => {
-  console.log("", emoji);
+// const onClick = (emoji: string) => {
+const onClick = (e: Event) => {
+  const el = e.target as HTMLElement;
+  if (el.className !== "emoji") return;
+
+  emit("selectedEmoji", el.textContent);
+  showContainer.value = false;
 };
 
-const getDiagonal = (n: number) => Math.sqrt(2) * n;
 const hovered = ref(false);
 const dimensions = reactive({
   top: 0,
@@ -141,21 +167,36 @@ const dimensions = reactive({
 const setDimensions = (el: HTMLElement | null | undefined) => {
   if (!el) return;
   const [offsetX, offsetY] = props.offset;
-  const diagonal = props.showArrow ? getDiagonal(ARROW_SIZE) : 0;
-  console.log("", { diagonal: diagonal / 2 });
-  const {
-    marginLeft,
-    marginTop,
-    width: computedWidth,
-    height: computedHeight,
-  } = window.getComputedStyle(el);
-  const nieco = containerRef.value?.offsetWidth;
-  console.log({ nieco });
+  // const {
+  //   marginLeft,
+  //   marginTop,
+  //   width: computedWidth,
+  //   height: computedHeight,
+  // } = window.getComputedStyle(el);
   const n = props.width / 2 - el.offsetWidth / 2;
-  dimensions.top = el.offsetTop + el.offsetHeight + offsetY + diagonal / 2;
-  dimensions.left = el.offsetLeft - n + offsetX;
+  const positionsY = {
+    top: el.offsetTop - props.height - offsetY - ARROW_OFFSET,
+    bottom: el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET,
+    left: el.offsetTop + el.offsetHeight / 2 - props.height / 2 + offsetY,
+    right: el.offsetTop + el.offsetHeight / 2 - props.height / 2 + offsetY,
+  };
+  const positionsX = {
+    top: el.offsetLeft - n + offsetX,
+    bottom: el.offsetLeft - n + offsetX,
+    left: el.offsetLeft - props.width - ARROW_OFFSET,
+    right: el.offsetLeft + el.offsetWidth + ARROW_OFFSET,
+  };
+  let finalTop;
+  // if (pickerPosition.value === "bottom") {
+  //   finalTop = el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET;
+  // } else if (picker)
+
+  // console.log('WTF', { jedno: el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET, druhe: positions[]})
+
+  dimensions.top = positionsY[pickerPosition.value];
+  dimensions.left = positionsX[pickerPosition.value];
 };
-const onClickParent = (e: Event) => {
+const onClickParentElement = (e: Event) => {
   e.stopPropagation();
   showContainer.value = !showContainer.value;
 };
@@ -167,11 +208,11 @@ onMounted(() => {
   parentEl = containerRef.value?.parentElement;
   setDimensions(parentEl);
   console.log("mounted", containerRef.value?.parentElement);
-  parentEl?.addEventListener("click", onClickParent);
+  parentEl?.addEventListener("click", onClickParentElement);
 });
 onBeforeUnmount(() => {
   console.log("unm", parentEl);
-  parentEl?.removeEventListener("click", onClickParent);
+  parentEl?.removeEventListener("click", onClickParentElement);
 });
 </script>
 
@@ -180,26 +221,39 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 .emoji-picker {
+  box-sizing: border-box;
+
   position: absolute;
   top: 0;
   left: 0;
+  box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px,
+    rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+  border-radius: 10px;
+
   --background-color: #fff;
   --border-color: #e6e6e6;
+  --border-radius: 10px;
+  --scrollbar-width: 6px;
+}
+.wrapper {
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  padding-right: 2px;
 }
 .picker-container {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   /* -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale; */
+  position: relative;
   color: #2c3e50;
-  box-sizing: border-box;
   padding: 10px;
-  /* overflow-y: hidden; */
+  padding-right: 2px;
   overflow-y: auto;
   backface-visibility: hidden;
-  border-radius: 10px;
+  /* border-radius: var(--border-radius); */
   background: var(--background-color);
-  box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px,
-    rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+  /* box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px,
+    rgba(0, 0, 0, 0.08) 0px 0px 0px 1px; */
 }
 .picker-container {
   width: 100%;
@@ -207,19 +261,25 @@ onBeforeUnmount(() => {
 /* .emoji-picker__hovered {
   overflow-y: auto;
 } */
-.emoji-picker::-webkit-scrollbar {
-  width: 6px;
+.picker-container::-webkit-scrollbar {
+  width: var(--scrollbar-width);
 }
 
-.emoji-picker::-webkit-scrollbar-track {
+.picker-container::-webkit-scrollbar-track {
   /* box-shadow: inset 0 0 5px grey; */
   /* background-color: #fafafa; */
   /* border-radius: 10px; */
+  margin: 10px 0;
 }
 
-.emoji-picker::-webkit-scrollbar-thumb {
-  background: #2c3e50;
-  border-radius: 10px;
+.picker-container::-webkit-scrollbar-thumb {
+  border-radius: var(--border-radius);
+  transition: opacity 200ms;
+  background-color: #2c3e50;
+  opacity: 0;
+}
+.emoji-picker__hovered .picker-container::-webkit-scrollbar-thumb {
+  opacity: 1;
 }
 
 header {
@@ -236,6 +296,47 @@ header {
   border-left: 1px solid var(--border-color);
   border-top: 1px solid var(--border-color);
 }
+.picker-arrow.arrow-bottom {
+  top: unset;
+  border: none;
+  bottom: 0;
+  transform: translate(-50%, 50%) rotate(45deg);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.picker-arrow.arrow-left {
+  top: 50%;
+  left: 0;
+  border: none;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.picker-arrow.arrow-right {
+  top: 50%;
+  left: unset;
+  right: 0;
+  border: none;
+  transform: translate(50%, -50%) rotate(45deg);
+  border-right: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
+}
+.scrollbar-hider {
+  position: absolute;
+  height: 100%;
+  width: 10px;
+  background-color: var(--background-color);
+  right: 0;
+  z-index: 10;
+  border-bottom-right-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  pointer-events: none;
+  transition: opacity 180ms;
+}
+.scrollbar-hider__invisible {
+  opacity: 0;
+}
+
 .picker-input {
   width: 100%;
   background-color: #fafafa;
@@ -264,6 +365,9 @@ header {
 
 .section-category {
   /* margin-top: 15px; */
+}
+section {
+  position: relative;
 }
 .emoji-container {
   display: flex;
