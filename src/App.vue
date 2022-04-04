@@ -1,7 +1,13 @@
 <template>
   <div class="test-container">
-    <button>
-      click to open
+    <section>
+      <button style="margin-left: -39px">
+        click to open
+        <emoji-picker />
+      </button>
+    </section>
+    <button class="test-btn" style="margin-left: -39px">
+      click to open2
       <emoji-picker />
     </button>
   </div>
@@ -27,5 +33,10 @@ import EmojiPicker from "./components/EmojiPicker/EmojiPicker.vue";
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.test-btn {
+  position: absolute;
+  right: 30px;
+  top: 20px;
 }
 </style>

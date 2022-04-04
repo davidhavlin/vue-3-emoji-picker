@@ -17,6 +17,18 @@
           @touchend="hovered = false"
         >
           <div
+            class="arrow-container"
+            :style="{
+              transform: `translate(${arrowDimensions.left}px, ${arrowDimensions.top}px) translateZ(0)`,
+            }"
+          >
+            <div
+              class="picker-arrow2"
+              :class="[ARROW_POSITION[pickerPosition]]"
+              :style="{ width: ARROW_SIZE + 'px', height: ARROW_SIZE + 'px' }"
+            ></div>
+          </div>
+          <div
             class="picker-arrow"
             :class="[ARROW_POSITION[pickerPosition]]"
             :style="{ width: ARROW_SIZE + 'px', height: ARROW_SIZE + 'px' }"
@@ -95,13 +107,15 @@ import { ref, onMounted, onBeforeUnmount, reactive } from "vue";
 import emojis from "./emojis";
 import { vClickOutside, vOnResize } from "./directives";
 
+type TPositions = "top" | "bottom" | "left" | "right" | "center";
+
 interface Props {
   placeholder?: string;
   modelValue?: boolean;
   width?: number;
   height?: number;
   searching?: boolean;
-  position?: "top" | "bottom" | "left" | "right";
+  position?: TPositions;
   offset?: number[];
   showArrow?: boolean;
 }
@@ -125,6 +139,7 @@ const ARROW_POSITION = {
   bottom: "arrow-top",
   left: "arrow-right",
   right: "arrow-left",
+  center: "arrow-none",
 };
 
 const pickerPosition = ref(props.position);
@@ -134,14 +149,47 @@ const showContainer = ref(true);
 const onClickOutside = () => {
   showContainer.value = false;
 };
-const onResize = () => {
-  console.log("resizee"); // check if space
+const onResize = (el: HTMLElement) => {
+  const { left, right } = el.getBoundingClientRect();
+  console.log("", { left, right });
   parentEl = containerRef.value?.parentElement;
-  setDimensions(parentEl);
+  if (!parentEl) return;
+  const directions: { [key in TPositions]: TPositions[] } = {
+    left: ["left", "right", "bottom", "top"],
+    right: ["right", "left", "bottom", "top"],
+    top: ["top", "bottom", "left", "right"],
+    bottom: ["bottom", "top", "left", "right"],
+    center: ["center"],
+  };
 
-  if (props.position === "left") {
+  for (const way of directions[props.position]) {
+    if (isEnoughSpace(way, parentEl)) {
+      pickerPosition.value = way;
+      setDimensions(parentEl);
+      break;
+    }
   }
 };
+
+function isEnoughSpace(direction: TPositions, parent: HTMLElement) {
+  const pickerSpaceX = props.width + ARROW_OFFSET;
+  const pickerSpaceY = props.height + ARROW_OFFSET;
+  if (direction === "left") {
+    const { left } = parent.getBoundingClientRect();
+    return left > pickerSpaceX;
+  } else if (direction === "right") {
+    const { right } = parent.getBoundingClientRect();
+    const offsetRight = window.innerWidth - right;
+    return offsetRight > pickerSpaceX;
+  } else if (direction === "top") {
+    const { top } = parent.getBoundingClientRect();
+    return top > pickerSpaceY;
+  } else if (direction === "bottom") {
+    const { top, height } = parent.getBoundingClientRect();
+    const bottom = window.innerHeight - top - height;
+    return bottom > pickerSpaceY;
+  }
+}
 
 // function debounce(func, timeout = 300){
 //   let timer;
@@ -150,7 +198,7 @@ const onResize = () => {
 //     timer = setTimeout(() => { func.apply(this, args); }, timeout);
 //   };
 // }
-// const onClick = (emoji: string) => {
+
 const onClick = (e: Event) => {
   const el = e.target as HTMLElement;
   if (el.className !== "emoji") return;
@@ -161,6 +209,10 @@ const onClick = (e: Event) => {
 
 const hovered = ref(false);
 const dimensions = reactive({
+  top: 0,
+  left: 0,
+});
+const arrowDimensions = reactive({
   top: 0,
   left: 0,
 });
@@ -179,22 +231,41 @@ const setDimensions = (el: HTMLElement | null | undefined) => {
     bottom: el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET,
     left: el.offsetTop + el.offsetHeight / 2 - props.height / 2 + offsetY,
     right: el.offsetTop + el.offsetHeight / 2 - props.height / 2 + offsetY,
+    center: 0,
   };
   const positionsX = {
     top: el.offsetLeft - n + offsetX,
     bottom: el.offsetLeft - n + offsetX,
     left: el.offsetLeft - props.width - ARROW_OFFSET,
     right: el.offsetLeft + el.offsetWidth + ARROW_OFFSET,
+    center: 0,
   };
   let finalTop;
   // if (pickerPosition.value === "bottom") {
   //   finalTop = el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET;
   // } else if (picker)
 
-  // console.log('WTF', { jedno: el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET, druhe: positions[]})
+  const x = positionsX[pickerPosition.value];
+  const y = positionsY[pickerPosition.value];
+  const outerSpace = window.innerWidth - props.width - x;
 
-  dimensions.top = positionsY[pickerPosition.value];
-  dimensions.left = positionsX[pickerPosition.value];
+  if (x < 0) {
+    dimensions.left = 0;
+    arrowDimensions.left = x;
+  } else if (outerSpace < 0) {
+    dimensions.left = window.innerWidth - props.width;
+    arrowDimensions.left = Math.abs(outerSpace);
+  } else {
+    dimensions.left = x;
+    arrowDimensions.left = 0;
+  }
+
+  // dimensions.left = x < 0 ? 0 : x;
+  dimensions.top = y < 0 ? 0 : y;
+  arrowDimensions.top = y < 0 ? y : 0;
+  // arrowDimensions.left = x < 0 ? x : 0;
+
+  console.log("", { outerSpace, x, hm: outerSpace > x });
 };
 const onClickParentElement = (e: Event) => {
   e.stopPropagation();
@@ -223,6 +294,7 @@ onBeforeUnmount(() => {
 .emoji-picker {
   box-sizing: border-box;
 
+  color: palegreen;
   position: absolute;
   top: 0;
   left: 0;
@@ -286,7 +358,23 @@ header {
   position: relative;
   transform: tran;
 }
-
+.arrow-container {
+  position: absolute;
+  width: 100%;
+  height: 0px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.picker-arrow2 {
+  position: relative;
+  top: 0;
+  background: #fff;
+  transform: rotate(45deg);
+  border-left: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
+}
 .picker-arrow {
   position: absolute;
   top: 0;
@@ -321,10 +409,15 @@ header {
   border-right: 1px solid var(--border-color);
   border-top: 1px solid var(--border-color);
 }
+.picker-arrow.arrow-none {
+  display: none;
+}
 .scrollbar-hider {
   position: absolute;
-  height: 100%;
-  width: 10px;
+  height: calc(100% - 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
   background-color: var(--background-color);
   right: 0;
   z-index: 10;
