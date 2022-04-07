@@ -18,21 +18,16 @@
         >
           <div
             class="arrow-container"
+            :class="[ARROW_POSITION[pickerPosition]]"
             :style="{
               transform: `translate(${arrowDimensions.left}px, ${arrowDimensions.top}px) translateZ(0)`,
             }"
           >
             <div
-              class="picker-arrow2"
-              :class="[ARROW_POSITION[pickerPosition]]"
+              class="picker-arrow"
               :style="{ width: ARROW_SIZE + 'px', height: ARROW_SIZE + 'px' }"
             ></div>
           </div>
-          <div
-            class="picker-arrow"
-            :class="[ARROW_POSITION[pickerPosition]]"
-            :style="{ width: ARROW_SIZE + 'px', height: ARROW_SIZE + 'px' }"
-          ></div>
           <div
             class="scrollbar-hider"
             :class="{ 'scrollbar-hider__invisible': hovered }"
@@ -103,7 +98,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onBeforeUnmount, reactive } from "vue";
+import {
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  reactive,
+  watch,
+  nextTick,
+  computed,
+} from "vue";
 import emojis from "./emojis";
 import { vClickOutside, vOnResize } from "./directives";
 
@@ -111,7 +114,7 @@ type TPositions = "top" | "bottom" | "left" | "right" | "center";
 
 interface Props {
   placeholder?: string;
-  modelValue?: boolean;
+  modelValue?: boolean | null;
   width?: number;
   height?: number;
   searching?: boolean;
@@ -122,15 +125,23 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: "Search emojis...",
-  modelValue: undefined,
+  modelValue: null,
   width: 240,
   height: 250,
   searching: true,
-  position: "left",
+  position: "right",
   offset: () => [0, 0],
   showArrow: true, // todo change later
 });
-const emit = defineEmits(["selectedEmoji"]);
+const emit = defineEmits(["selectedEmoji", "update:modelValue"]);
+
+const directions: { [key in TPositions]: TPositions[] } = {
+  left: ["left", "right", "bottom", "top"],
+  right: ["right", "left", "bottom", "top"],
+  top: ["top", "bottom", "left", "right"],
+  bottom: ["bottom", "top", "left", "right"],
+  center: ["center"],
+};
 
 const ARROW_SIZE = 13;
 const ARROW_OFFSET = props.showArrow ? (Math.sqrt(2) * ARROW_SIZE) / 2 : 0;
@@ -143,32 +154,50 @@ const ARROW_POSITION = {
 };
 
 const pickerPosition = ref(props.position);
+const containerRef = ref<HTMLElement | null>(null);
 
-const showContainer = ref(true);
+const innerValue = ref(true);
+console.log("MODEL VALUE", props.modelValue);
+const showContainer = computed({
+  get: () =>
+    typeof props.modelValue === "boolean" ? props.modelValue : innerValue.value,
+  set: (value: boolean) => {
+    console.log("SETTER", { value, je: typeof props.modelValue === "boolean" });
+    typeof props.modelValue === "boolean"
+      ? emit("update:modelValue", value)
+      : (innerValue.value = value);
+  },
+});
+watch(
+  () => showContainer.value,
+  (showed) => {
+    nextTick(() => {
+      if (!showed) return;
+      const parentEl = containerRef.value?.parentElement;
+      handlePosition(parentEl);
+    });
+  },
+  { immediate: true }
+);
 
-const onClickOutside = () => {
-  showContainer.value = false;
-};
-const onResize = (el: HTMLElement) => {
-  const { left, right } = el.getBoundingClientRect();
-  console.log("", { left, right });
-  parentEl = containerRef.value?.parentElement;
-  if (!parentEl) return;
-  const directions: { [key in TPositions]: TPositions[] } = {
-    left: ["left", "right", "bottom", "top"],
-    right: ["right", "left", "bottom", "top"],
-    top: ["top", "bottom", "left", "right"],
-    bottom: ["bottom", "top", "left", "right"],
-    center: ["center"],
-  };
-
+function handlePosition(el: HTMLElement | null | undefined) {
+  if (!el) return;
   for (const way of directions[props.position]) {
-    if (isEnoughSpace(way, parentEl)) {
+    if (isEnoughSpace(way, el)) {
       pickerPosition.value = way;
-      setDimensions(parentEl);
+      setDimensions(el);
       break;
     }
   }
+}
+
+const onClickOutside = () => {
+  console.log(" onClickOutside", { show: showContainer.value });
+  showContainer.value = false;
+};
+const onResize = (el: HTMLElement) => {
+  parentEl = containerRef.value?.parentElement;
+  handlePosition(parentEl);
 };
 
 function isEnoughSpace(direction: TPositions, parent: HTMLElement) {
@@ -204,6 +233,7 @@ const onClick = (e: Event) => {
   if (el.className !== "emoji") return;
 
   emit("selectedEmoji", el.textContent);
+  console.log("onClick");
   showContainer.value = false;
 };
 
@@ -219,12 +249,6 @@ const arrowDimensions = reactive({
 const setDimensions = (el: HTMLElement | null | undefined) => {
   if (!el) return;
   const [offsetX, offsetY] = props.offset;
-  // const {
-  //   marginLeft,
-  //   marginTop,
-  //   width: computedWidth,
-  //   height: computedHeight,
-  // } = window.getComputedStyle(el);
   const n = props.width / 2 - el.offsetWidth / 2;
   const positionsY = {
     top: el.offsetTop - props.height - offsetY - ARROW_OFFSET,
@@ -240,49 +264,42 @@ const setDimensions = (el: HTMLElement | null | undefined) => {
     right: el.offsetLeft + el.offsetWidth + ARROW_OFFSET,
     center: 0,
   };
-  let finalTop;
-  // if (pickerPosition.value === "bottom") {
-  //   finalTop = el.offsetTop + el.offsetHeight + offsetY + ARROW_OFFSET;
-  // } else if (picker)
 
   const x = positionsX[pickerPosition.value];
   const y = positionsY[pickerPosition.value];
-  const outerSpace = window.innerWidth - props.width - x;
+  const outsideX = window.innerWidth - props.width - x;
+  const outsideY = window.innerHeight - props.height - y;
+  console.log("", { outsideX, outsideY });
 
   if (x < 0) {
     dimensions.left = 0;
     arrowDimensions.left = x;
-  } else if (outerSpace < 0) {
-    dimensions.left = window.innerWidth - props.width;
-    arrowDimensions.left = Math.abs(outerSpace);
+  } else if (outsideX < 0) {
+    const X_PADDING = 10;
+    dimensions.left = window.innerWidth - props.width - X_PADDING;
+    arrowDimensions.left = Math.abs(outsideX) + X_PADDING;
   } else {
     dimensions.left = x;
     arrowDimensions.left = 0;
   }
 
-  // dimensions.left = x < 0 ? 0 : x;
   dimensions.top = y < 0 ? 0 : y;
   arrowDimensions.top = y < 0 ? y : 0;
-  // arrowDimensions.left = x < 0 ? x : 0;
-
-  console.log("", { outerSpace, x, hm: outerSpace > x });
 };
 const onClickParentElement = (e: Event) => {
   e.stopPropagation();
+  console.log("onClickParentElement");
   showContainer.value = !showContainer.value;
 };
 
-const containerRef = ref<HTMLElement | null>(null);
 let parentEl: null | undefined | HTMLElement;
 onMounted(() => {
-  // props.modelValue;
+  if (props.modelValue !== null) return;
   parentEl = containerRef.value?.parentElement;
-  setDimensions(parentEl);
-  console.log("mounted", containerRef.value?.parentElement);
   parentEl?.addEventListener("click", onClickParentElement);
 });
 onBeforeUnmount(() => {
-  console.log("unm", parentEl);
+  if (props.modelValue !== null) return;
   parentEl?.removeEventListener("click", onClickParentElement);
 });
 </script>
@@ -306,6 +323,7 @@ onBeforeUnmount(() => {
   --border-color: #e6e6e6;
   --border-radius: 10px;
   --scrollbar-width: 6px;
+  --arrow-width: v-bind(ARROW_SIZE);
 }
 .wrapper {
   border-radius: var(--border-radius);
@@ -361,54 +379,58 @@ header {
 .arrow-container {
   position: absolute;
   width: 100%;
-  height: 0px;
+  height: var(--arrow-width);
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.picker-arrow2 {
+.picker-arrow {
   position: relative;
   top: 0;
-  background: #fff;
-  transform: rotate(45deg);
+  background: var(--background-color);
+  transform: rotate(45deg) translateY(-50%);
+  transform-origin: top;
   border-left: 1px solid var(--border-color);
   border-top: 1px solid var(--border-color);
 }
-.picker-arrow {
-  position: absolute;
-  top: 0;
-  transform: translate(-50%, -50%) rotate(45deg);
-  left: 50%;
-  background: #fff;
-  border-left: 1px solid var(--border-color);
-  border-top: 1px solid var(--border-color);
-}
-.picker-arrow.arrow-bottom {
-  top: unset;
-  border: none;
-  bottom: 0;
-  transform: translate(-50%, 50%) rotate(45deg);
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-.picker-arrow.arrow-left {
-  top: 50%;
-  left: 0;
-  border: none;
-  transform: translate(-50%, -50%) rotate(45deg);
-  border-left: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-.picker-arrow.arrow-right {
-  top: 50%;
-  left: unset;
+.arrow-container.arrow-right {
+  height: 100%;
+  width: var(--arrow-width);
   right: 0;
+}
+.arrow-container.arrow-left {
+  height: 100%;
+  width: var(--arrow-width);
+  left: 0;
+}
+.arrow-container.arrow-bottom {
+  height: var(--arrow-width);
+  width: 100%;
+  bottom: 0;
+}
+.arrow-container.arrow-left .picker-arrow {
+  transform: rotate(45deg) translateX(-50%);
+  transform-origin: left;
   border: none;
-  transform: translate(50%, -50%) rotate(45deg);
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.arrow-container.arrow-right .picker-arrow {
+  transform: rotate(45deg) translateX(50%);
+  transform-origin: right;
+  border: none;
   border-right: 1px solid var(--border-color);
   border-top: 1px solid var(--border-color);
 }
+.arrow-container.arrow-bottom .picker-arrow {
+  transform: rotate(45deg) translateY(50%);
+  transform-origin: bottom;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
 .picker-arrow.arrow-none {
   display: none;
 }

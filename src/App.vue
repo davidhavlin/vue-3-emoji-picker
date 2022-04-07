@@ -1,20 +1,24 @@
 <template>
   <div class="test-container">
     <section>
-      <button style="margin-left: -39px">
+      <button @click="test = !test" style="margin-left: -39px">
+        {{ test }}
         click to open
-        <emoji-picker />
+        <!-- <emoji-picker /> -->
       </button>
     </section>
     <button class="test-btn" style="margin-left: -39px">
       click to open2
-      <emoji-picker />
+      <emoji-picker v-model="test" />
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import EmojiPicker from "./components/EmojiPicker/EmojiPicker.vue";
+
+const test = ref(false);
 </script>
 
 <style>

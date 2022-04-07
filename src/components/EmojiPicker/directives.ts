@@ -20,7 +20,6 @@ export const vClickOutside: Directive = {
     document.addEventListener("touchstart", handler);
   },
   beforeUnmount: (el: HTMLElement) => {
-    console.log("unmount", { el });
     document.removeEventListener("click", handler);
     document.removeEventListener("touchstart", handler);
   },
