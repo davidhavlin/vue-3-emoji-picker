@@ -1609,8 +1609,6 @@ const emojis = {
     "Rainbow flag": "🏳️‍🌈",
     "Transgender flag": "🏳️‍⚧️",
     "Pirate flag": "🏴‍☠️",
-  },
-  "Country Flags": {
     "Ascension Island flag": "🇦🇨",
     "Andorra flag": "🇦🇩",
     "UAE flag": "🇦🇪",
@@ -1863,14 +1861,19 @@ const emojis = {
     "South Africa flag": "🇿🇦",
     "Zambia flag": "🇿🇲",
     "Zimbabwe flag": "🇿🇼",
-  },
-  "British Subdivision Flags": {
     "England flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     "Scotland flag": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
     "Wales flag": "🏴󠁧󠁢󠁷󠁬󠁳󠁿",
   },
 };
 
-export const categories = Object.keys(emojis);
+type TCategory = keyof typeof emojis;
+export const categories = (Object.keys(emojis) as TCategory[]).reduce(
+  (res, category) => {
+    res[category] = Object.values(emojis[category])[0];
+    return res;
+  },
+  {} as { [key in TCategory]: string }
+);
 
 export default emojis;

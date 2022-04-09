@@ -61,19 +61,39 @@
                 </div>
               </header>
 
-              <section class="section-used">
+              <section class="section-used" v-if="lastUsedEmojis.length > 0">
                 <div class="category-name special">Last used</div>
                 <div class="emoji-container special">
-                  <div class="emoji">😉</div>
-                  <div class="emoji">😉</div>
-                  <div class="emoji">😉</div>
+                  <div
+                    v-for="emoji in lastUsedEmojis"
+                    :key="emoji"
+                    class="emoji"
+                  >
+                    {{ emoji }}
+                  </div>
                 </div>
               </section>
 
-              <section>categories</section>
+              <section class="section-categories">
+                <div class="category-name special">Categories</div>
+                <div class="categories-container">
+                  <div
+                    v-for="(firstEmoji, category) in categories"
+                    :key="category"
+                    class="category-item"
+                    :class="{
+                      selected: selectedCategories.indexOf(category) !== -1,
+                    }"
+                    @click="onClickCategory(category)"
+                    :title="category"
+                  >
+                    {{ firstEmoji }}
+                  </div>
+                </div>
+              </section>
 
               <section
-                v-for="(category, name) in emojis"
+                v-for="(category, name) in filteredEmojis"
                 :key="name"
                 class="section-category"
               >
@@ -82,7 +102,7 @@
                   <div
                     v-for="(emoji, desc) in category"
                     :key="desc"
-                    :title="desc"
+                    :title="String(desc)"
                     class="emoji"
                   >
                     {{ emoji }}
@@ -107,8 +127,9 @@ import {
   nextTick,
   computed,
 } from "vue";
-import emojis from "./emojis";
+import emojis, { categories } from "./emojis";
 import { vClickOutside, vOnResize } from "./directives";
+import { useStorage } from "./useStorage";
 
 type TPositions = "top" | "bottom" | "left" | "right" | "center";
 
@@ -129,11 +150,13 @@ const props = withDefaults(defineProps<Props>(), {
   width: 240,
   height: 250,
   searching: true,
-  position: "right",
+  position: "bottom",
   offset: () => [0, 0],
   showArrow: true, // todo change later
 });
 const emit = defineEmits(["selectedEmoji", "update:modelValue"]);
+
+const { pushToStorage, lastUsedEmojis } = useStorage();
 
 const directions: { [key in TPositions]: TPositions[] } = {
   left: ["left", "right", "bottom", "top"],
@@ -157,12 +180,10 @@ const pickerPosition = ref(props.position);
 const containerRef = ref<HTMLElement | null>(null);
 
 const innerValue = ref(true);
-console.log("MODEL VALUE", props.modelValue);
 const showContainer = computed({
   get: () =>
     typeof props.modelValue === "boolean" ? props.modelValue : innerValue.value,
   set: (value: boolean) => {
-    console.log("SETTER", { value, je: typeof props.modelValue === "boolean" });
     typeof props.modelValue === "boolean"
       ? emit("update:modelValue", value)
       : (innerValue.value = value);
@@ -172,7 +193,10 @@ watch(
   () => showContainer.value,
   (showed) => {
     nextTick(() => {
-      if (!showed) return;
+      if (!showed) {
+        clickCounter.value = 0;
+        return;
+      }
       const parentEl = containerRef.value?.parentElement;
       handlePosition(parentEl);
     });
@@ -190,15 +214,37 @@ function handlePosition(el: HTMLElement | null | undefined) {
     }
   }
 }
-
+const clickCounter = ref(0);
 const onClickOutside = () => {
-  console.log(" onClickOutside", { show: showContainer.value });
+  if (clickCounter.value === 0 && props.modelValue !== null) {
+    clickCounter.value++;
+    return;
+  }
   showContainer.value = false;
 };
 const onResize = (el: HTMLElement) => {
   parentEl = containerRef.value?.parentElement;
   handlePosition(parentEl);
 };
+type TCategory = keyof typeof emojis;
+const selectedCategories = ref<TCategory[]>([]);
+const onClickCategory = (category: TCategory) => {
+  const index = selectedCategories.value.indexOf(category);
+  if (index === -1) {
+    selectedCategories.value.push(category);
+  } else {
+    selectedCategories.value.splice(index, 1);
+  }
+};
+
+const filteredEmojis = computed(() => {
+  if (selectedCategories.value.length === 0) return emojis;
+  const filtered: { [key in TCategory]?: any } = {};
+  for (const category of selectedCategories.value) {
+    filtered[category] = emojis[category];
+  }
+  return filtered;
+});
 
 function isEnoughSpace(direction: TPositions, parent: HTMLElement) {
   const pickerSpaceX = props.width + ARROW_OFFSET;
@@ -230,10 +276,11 @@ function isEnoughSpace(direction: TPositions, parent: HTMLElement) {
 
 const onClick = (e: Event) => {
   const el = e.target as HTMLElement;
-  if (el.className !== "emoji") return;
+  const emoji = el.textContent;
+  if (el.className !== "emoji" || !emoji) return;
 
-  emit("selectedEmoji", el.textContent);
-  console.log("onClick");
+  emit("selectedEmoji", emoji);
+  pushToStorage(emoji);
   showContainer.value = false;
 };
 
@@ -532,5 +579,31 @@ section {
 .container-enter-from,
 .container-leave-to {
   opacity: 0;
+}
+
+.section-categories {
+  /* display: flex; */
+  /* flex-wrap: wrap; */
+}
+.categories-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20px, 1fr));
+  justify-items: center;
+  gap: 1px;
+}
+.category-item {
+  font-size: 12px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+.category-item:hover,
+.category-item.selected {
+  background-color: blueviolet;
 }
 </style>

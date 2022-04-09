@@ -9,8 +9,9 @@
     </section>
     <button class="test-btn" style="margin-left: -39px">
       click to open2
-      <emoji-picker v-model="test" />
+      <emoji-picker @selected-emoji="addEmoji" />
     </button>
+    <textarea v-model="text" name="" id="" cols="30" rows="10"></textarea>
   </div>
 </template>
 
@@ -19,6 +20,11 @@ import { ref } from "vue";
 import EmojiPicker from "./components/EmojiPicker/EmojiPicker.vue";
 
 const test = ref(false);
+const text = ref("test text");
+
+const addEmoji = (emoji: string) => {
+  text.value += emoji;
+};
 </script>
 
 <style>
