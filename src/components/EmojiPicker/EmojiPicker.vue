@@ -39,9 +39,10 @@
               :style="{ height: height + 'px' }"
               @click="onClick"
             >
-              <header v-if="props.searching">
+              <header v-if="props.showSearch">
                 <input
                   class="picker-input"
+                  v-model="searchValue"
                   :placeholder="props.placeholder"
                   type="text"
                 />
@@ -74,41 +75,58 @@
                 </div>
               </section>
 
-              <section class="section-categories">
-                <div class="category-name special">Categories</div>
-                <div class="categories-container">
-                  <div
-                    v-for="(firstEmoji, category) in categories"
-                    :key="category"
-                    class="category-item"
-                    :class="{
-                      selected: selectedCategories.indexOf(category) !== -1,
-                    }"
-                    @click="onClickCategory(category)"
-                    :title="category"
-                  >
-                    {{ firstEmoji }}
+              <template v-if="foundEmojis.length > 0">
+                <section class="section-used">
+                  <div class="category-name special">search results</div>
+                  <div class="emoji-container special">
+                    <div
+                      v-for="(emoji, i) in foundEmojis"
+                      :key="`found-${emoji}-${i}`"
+                      class="emoji"
+                    >
+                      {{ emoji }}
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              </template>
 
-              <section
-                v-for="(category, name) in filteredEmojis"
-                :key="name"
-                class="section-category"
-              >
-                <div class="category-name">{{ name }}</div>
-                <div class="emoji-container">
-                  <div
-                    v-for="(emoji, desc) in category"
-                    :key="desc"
-                    :title="String(desc)"
-                    class="emoji"
-                  >
-                    {{ emoji }}
+              <template v-else>
+                <section v-if="props.showCategories" class="section-categories">
+                  <div class="category-name special">Categories</div>
+                  <div class="categories-container">
+                    <div
+                      v-for="(firstEmoji, category) in categories"
+                      :key="category"
+                      class="category-item"
+                      :class="{
+                        selected: selectedCategories.indexOf(category) !== -1,
+                      }"
+                      @click="onClickCategory(category)"
+                      :title="category"
+                    >
+                      {{ firstEmoji }}
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
+
+                <section
+                  v-for="(category, name) in filteredEmojis"
+                  :key="name"
+                  class="section-category"
+                >
+                  <div class="category-name">{{ name }}</div>
+                  <div class="emoji-container">
+                    <div
+                      v-for="(emoji, desc) in category"
+                      :key="desc"
+                      :title="String(desc)"
+                      class="emoji"
+                    >
+                      {{ emoji }}
+                    </div>
+                  </div>
+                </section>
+              </template>
             </div>
           </div>
         </main>
@@ -127,9 +145,10 @@ import {
   nextTick,
   computed,
 } from "vue";
-import emojis, { categories } from "./emojis";
+import emojis, { categories, allEmojis } from "./emojis";
 import { vClickOutside, vOnResize } from "./directives";
 import { useStorage } from "./useStorage";
+import { useSearch } from "./useSearch";
 
 type TPositions = "top" | "bottom" | "left" | "right" | "center";
 
@@ -138,10 +157,11 @@ interface Props {
   modelValue?: boolean | null;
   width?: number;
   height?: number;
-  searching?: boolean;
   position?: TPositions;
   offset?: number[];
   showArrow?: boolean;
+  showSearch?: boolean;
+  showCategories?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -149,14 +169,16 @@ const props = withDefaults(defineProps<Props>(), {
   modelValue: null,
   width: 240,
   height: 250,
-  searching: true,
   position: "bottom",
   offset: () => [0, 0],
   showArrow: true, // todo change later
+  showSearch: true,
+  showCategories: false,
 });
 const emit = defineEmits(["selectedEmoji", "update:modelValue"]);
 
 const { pushToStorage, lastUsedEmojis } = useStorage();
+const { searchValue, foundEmojis } = useSearch(allEmojis);
 
 const directions: { [key in TPositions]: TPositions[] } = {
   left: ["left", "right", "bottom", "top"],
@@ -265,14 +287,6 @@ function isEnoughSpace(direction: TPositions, parent: HTMLElement) {
     return bottom > pickerSpaceY;
   }
 }
-
-// function debounce(func, timeout = 300){
-//   let timer;
-//   return (...args) => {
-//     clearTimeout(timer);
-//     timer = setTimeout(() => { func.apply(this, args); }, timeout);
-//   };
-// }
 
 const onClick = (e: Event) => {
   const el = e.target as HTMLElement;
@@ -394,6 +408,7 @@ onBeforeUnmount(() => {
 }
 .picker-container {
   width: 100%;
+  overflow-y: scroll;
 }
 /* .emoji-picker__hovered {
   overflow-y: auto;

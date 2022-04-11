@@ -1876,4 +1876,6 @@ export const categories = (Object.keys(emojis) as TCategory[]).reduce(
   {} as { [key in TCategory]: string }
 );
 
+export const allEmojis = Object.assign({}, ...Object.values(emojis));
+
 export default emojis;
