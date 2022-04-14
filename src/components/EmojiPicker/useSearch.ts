@@ -5,8 +5,7 @@ function debounce(callback: Function, timeout = 300) {
   return (...args: any[]) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      // @ts-ignore
-      callback.apply(this, args);
+      callback.apply(null, args);
     }, timeout);
   };
 }

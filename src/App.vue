@@ -2,16 +2,15 @@
   <div class="test-container">
     <section>
       <button @click="test = !test" style="margin-left: -39px">
-        {{ test }}
         click to open
-        <!-- <emoji-picker /> -->
+        <emoji-picker position="right" />
       </button>
     </section>
     <button class="test-btn" style="margin-left: -39px">
       click to open2
       <emoji-picker @selected-emoji="addEmoji" />
     </button>
-    <textarea v-model="text" name="" id="" cols="30" rows="10"></textarea>
+    <!-- <textarea v-model="text" name="" id="" cols="30" rows="10"></textarea> -->
   </div>
 </template>
 
